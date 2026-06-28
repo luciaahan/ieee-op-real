@@ -49,6 +49,17 @@ export async function PATCH(
   }
 
   const body = await req.json();
+
+  if (
+    body.signupFormUrl !== undefined &&
+    !String(body.signupFormUrl).trim()
+  ) {
+    return NextResponse.json(
+      { error: "RSVP link is required." },
+      { status: 400 },
+    );
+  }
+
   const needsFoodSponsored =
     body.needsFoodSponsored !== undefined
       ? body.needsFoodSponsored
@@ -67,7 +78,10 @@ export async function PATCH(
       location: body.location ?? data.event.location,
       description: body.description ?? data.event.description,
       status: body.status ?? data.event.status,
-      signupFormUrl: body.signupFormUrl ?? data.event.signupFormUrl,
+      signupFormUrl:
+        body.signupFormUrl !== undefined
+          ? String(body.signupFormUrl).trim()
+          : data.event.signupFormUrl,
       rsvpCount: body.rsvpCount ?? data.event.rsvpCount,
       needsFoodSponsored,
       needsFoodInternal,
@@ -75,9 +89,10 @@ export async function PATCH(
       needsSupplies: body.needsSupplies ?? data.event.needsSupplies,
       hasExternalGuests:
         body.hasExternalGuests ?? data.event.hasExternalGuests,
-      coHostIds: body.coHostIds
-        ? JSON.stringify(body.coHostIds)
-        : data.event.coHostIds,
+      coHostIds:
+        body.coHostIds !== undefined
+          ? JSON.stringify(body.coHostIds)
+          : data.event.coHostIds,
     })
     .where(eq(events.id, id));
 

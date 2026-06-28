@@ -10,90 +10,102 @@ import {
   deliverables,
   actionItems,
   eventChecklistItems,
-  signatureEventTemplates,
+  goals,
 } from "@/lib/db/schema";
 import { eq, isNull } from "drizzle-orm";
-import {
-  eventCadenceStatus,
-  getLastCompletedDate,
-  getUpcomingEvents,
-} from "@/lib/kpi";
+import { getUpcomingEvents } from "@/lib/kpi";
 import { isOverdue } from "@/lib/checklist";
-import { getCurrentMonthPeriod, formatMonthRange } from "@/lib/month-period";
-import { getSignatureCompletion } from "@/lib/signature";
+import {
+  getCurrentMonthPeriod,
+  formatMonthRange,
+  getEventsInMonth,
+} from "@/lib/month-period";
 import { format } from "date-fns";
+import { canViewAllCommittees } from "@/lib/permissions";
+import { getSemesterSettings } from "@/lib/settings";
+import {
+  committeeNeedsAttention,
+  countCompletedEventsInSemester,
+  eventCommitteeStatus,
+  posterCommitteeStatus,
+  roomCommitteeStatus,
+  type CommitteeStatus,
+} from "@/lib/committee-status";
+import { findSemesterEventGoal, parseEventTarget } from "@/lib/goals";
+import { filterActionItemsForUser } from "@/lib/action-items";
+
+const COMPLETED_STATUSES = new Set(["completed", "confirmed"]);
 
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const month = getCurrentMonthPeriod();
+  const semester = await getSemesterSettings();
 
   const allCommittees = await db.select().from(committees).orderBy(committees.sortOrder);
+  const visibleCommittees = canViewAllCommittees(session.user)
+    ? allCommittees
+    : allCommittees.filter((c) =>
+        session.user.committeeEditScopes.includes(c.slug),
+      );
   const allEvents = await db.select().from(events).where(isNull(events.deletedAt));
-  const openActions = await db.select().from(actionItems).where(eq(actionItems.status, "open"));
+  const openActions = filterActionItemsForUser(
+    session.user,
+    await db.select().from(actionItems).where(eq(actionItems.status, "open")),
+  );
   const posters = await db.select().from(deliverables).where(eq(deliverables.type, "poster"));
   const roomBookings = await db
     .select()
     .from(deliverables)
     .where(eq(deliverables.type, "room_booking"));
   const checklistItems = await db.select().from(eventChecklistItems);
-  const allSignatureTemplates = await db.select().from(signatureEventTemplates);
+  const allGoals = await db.select().from(goals);
 
   const committeeMap = Object.fromEntries(allCommittees.map((c) => [c.id, c]));
+  const eventsById = Object.fromEntries(allEvents.map((e) => [e.id, e]));
+  const goalsByCommittee = new Map<string, typeof allGoals>();
+  for (const goal of allGoals) {
+    const list = goalsByCommittee.get(goal.committeeId) ?? [];
+    list.push(goal);
+    goalsByCommittee.set(goal.committeeId, list);
+  }
+  const visibleCommitteeIds = new Set(visibleCommittees.map((c) => c.id));
 
-  const signatureChecklist = allSignatureTemplates.map((template) => {
-    const committee = committeeMap[template.committeeId];
-    const committeeEvents = allEvents.filter(
-      (e) => e.committeeId === template.committeeId,
-    );
-    const { completed, matchedEvent, scheduledThisMonth } = getSignatureCompletion(
-      template.name,
-      committeeEvents,
-      month,
-    );
-    return {
-      id: template.id,
-      committeeSlug: committee?.slug ?? "",
-      committeeName: committee?.name ?? "",
-      name: template.name,
-      completed,
-      scheduledThisMonth,
-      matchedEventTitle: matchedEvent?.title ?? null,
-      eventDate: matchedEvent?.startAt?.slice(0, 10) ?? null,
-    };
-  });
-
-  const signatureThisMonth = signatureChecklist.filter(
-    (s) => s.scheduledThisMonth || s.completed,
+  const eventsThisMonth = getEventsInMonth(
+    allEvents.filter((e) => visibleCommitteeIds.has(e.committeeId)),
+    month,
   );
 
-  const cards = allCommittees.map((committee) => {
+  const cards = visibleCommittees.map((committee) => {
     const committeeEvents = allEvents.filter((e) => e.committeeId === committee.id);
-    const lastCompleted = getLastCompletedDate(committeeEvents);
+    const committeeGoals = goalsByCommittee.get(committee.id) ?? [];
     const upcoming = getUpcomingEvents(committeeEvents);
     const nextEvent = upcoming[0] ?? null;
 
-    let status = "on_track";
+    let status: CommitteeStatus = "on_track";
+    let semesterProgress: { completed: number; target: number } | undefined;
+
     if (committee.trackingType === "events") {
-      status = eventCadenceStatus(
-        lastCompleted,
-        nextEvent ? new Date(nextEvent.startAt) : null,
-      );
+      status = eventCommitteeStatus(committeeEvents, committeeGoals, semester);
+      const semesterGoal = findSemesterEventGoal(committeeGoals);
+      const target = parseEventTarget(semesterGoal?.targetMetric ?? null);
+      if (target != null) {
+        semesterProgress = {
+          completed: countCompletedEventsInSemester(committeeEvents, semester),
+          target,
+        };
+      }
     } else if (committee.trackingType === "deliverables") {
-      status = posters.some((p) => p.status !== "done") ? "at_risk" : "on_track";
+      status = posterCommitteeStatus(posters, eventsById);
     } else if (committee.trackingType === "rooms") {
-      status = roomBookings.some((r) => r.status !== "done")
-        ? "at_risk"
-        : "on_track";
+      status = roomCommitteeStatus(roomBookings, eventsById);
     }
 
     return {
       ...committee,
       status,
-      daysSinceLastEvent: lastCompleted
-        ? Math.floor((Date.now() - lastCompleted.getTime()) / 86400000)
-        : null,
+      semesterProgress,
       nextEvent,
       openActionItems: openActions.filter((a) => a.committeeId === committee.id).length,
       backlogCount:
@@ -113,7 +125,9 @@ export default async function DashboardPage() {
         .some((item) => isOverdue(item.dueDate, item.status)),
     );
 
-  const completedCount = signatureThisMonth.filter((s) => s.completed).length;
+  const completedCount = eventsThisMonth.filter((e) =>
+    COMPLETED_STATUSES.has(e.status),
+  ).length;
 
   return (
     <InternalLayout>
@@ -125,18 +139,20 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3 text-sm">
-        <span className="rounded bg-red-50 px-3 py-1 text-red-700">
-          {openActions.length} overdue/open action items
-        </span>
-        <span className="rounded bg-amber-50 px-3 py-1 text-amber-700">
-          {cards.filter((c) => c.status !== "on_track").length} committees need attention
-        </span>
-        <span className="rounded bg-blue-50 px-3 py-1 text-blue-700">
-          {posters.filter((p) => p.status !== "done").length} posters pending
-        </span>
-        {signatureThisMonth.length > 0 && (
+        {openActions.length > 0 && (
+          <span className="rounded bg-red-50 px-3 py-1 text-red-700">
+            {openActions.length} overdue/open action item
+            {openActions.length === 1 ? "" : "s"}
+          </span>
+        )}
+        {canViewAllCommittees(session.user) && (
+          <span className="rounded bg-amber-50 px-3 py-1 text-amber-700">
+            {cards.filter((c) => committeeNeedsAttention(c.status)).length} committees need attention
+          </span>
+        )}
+        {eventsThisMonth.length > 0 && (
           <span className="rounded bg-green-50 px-3 py-1 text-green-700">
-            {completedCount}/{signatureThisMonth.length} signature events done this month
+            {completedCount}/{eventsThisMonth.length} events done this month
           </span>
         )}
       </div>
@@ -157,26 +173,38 @@ export default async function DashboardPage() {
       )}
 
       <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 text-slate-900">
-        <h2 className="font-semibold text-slate-900">Signature events this month</h2>
+        <h2 className="font-semibold text-slate-900">Events this month</h2>
         <p className="mt-1 text-sm text-slate-600">{formatMonthRange(month)}</p>
-        {signatureThisMonth.length === 0 ? (
+        {eventsThisMonth.length === 0 ? (
           <p className="mt-3 text-sm text-slate-600">
-            No signature events scheduled this month.
+            No events scheduled this month.
           </p>
         ) : (
           <ul className="mt-3 grid gap-1 text-sm text-slate-800 sm:grid-cols-2 lg:grid-cols-3">
-            {signatureThisMonth.map((s) => (
-              <li key={s.id}>
-                <span className={s.completed ? "text-green-700" : "text-amber-600"}>
-                  {s.completed ? "✓" : "○"}
-                </span>{" "}
-                <span className="font-medium text-slate-700">{s.committeeName}:</span>{" "}
-                <span className="text-slate-900">{s.name}</span>
-                {s.eventDate && (
-                  <span className="text-slate-600"> · {s.eventDate}</span>
-                )}
-              </li>
-            ))}
+            {eventsThisMonth.map((e) => {
+              const completed = COMPLETED_STATUSES.has(e.status);
+              const committee = committeeMap[e.committeeId];
+              return (
+                <li key={e.id}>
+                  <span className={completed ? "text-green-700" : "text-amber-600"}>
+                    {completed ? "✓" : "○"}
+                  </span>{" "}
+                  <span className="font-medium text-slate-700">
+                    {committee?.name ?? "Unknown"}:
+                  </span>{" "}
+                  <Link
+                    href={`/events/${e.id}`}
+                    className="text-[#00629B] hover:underline"
+                  >
+                    {e.title}
+                  </Link>
+                  <span className="text-slate-600">
+                    {" "}
+                    · {format(new Date(e.startAt), "MMM d")}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -189,7 +217,7 @@ export default async function DashboardPage() {
             name={c.name}
             trackingType={c.trackingType}
             status={c.status}
-            daysSinceLastEvent={c.daysSinceLastEvent}
+            semesterProgress={c.semesterProgress}
             nextEvent={c.nextEvent}
             openActionItems={c.openActionItems}
             backlogCount={c.backlogCount}

@@ -82,3 +82,14 @@ export function checklistProgress(
   ).length;
   return { done, total: applicable.length };
 }
+
+export function parseCoHostIds(raw: string | null | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}

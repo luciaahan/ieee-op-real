@@ -38,10 +38,9 @@ export async function buildReminderDigest(): Promise<ReminderDigest> {
     .from(events)
     .where(isNull(events.deletedAt));
 
-  const upcomingSignatureEvents = allEvents
+  const upcomingEvents = allEvents
     .filter(
       (e) =>
-        e.isSignature &&
         e.startAt.slice(0, 10) >= today &&
         e.startAt.slice(0, 10) <= in14Days &&
         e.status !== "completed",
@@ -68,7 +67,7 @@ export async function buildReminderDigest(): Promise<ReminderDigest> {
 
   return {
     overdueActionItems,
-    upcomingSignatureEvents,
+    upcomingEvents,
     overdueChecklistEvents,
   };
 }

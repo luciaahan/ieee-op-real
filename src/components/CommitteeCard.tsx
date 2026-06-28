@@ -6,7 +6,7 @@ type CommitteeCardProps = {
   name: string;
   trackingType: string;
   status: string;
-  daysSinceLastEvent: number | null;
+  semesterProgress?: { completed: number; target: number };
   nextEvent: { id: string; title: string; startAt: string } | null;
   openActionItems: number;
   backlogCount?: number;
@@ -17,7 +17,7 @@ export function CommitteeCard({
   name,
   trackingType,
   status,
-  daysSinceLastEvent,
+  semesterProgress,
   nextEvent,
   openActionItems,
   backlogCount,
@@ -34,12 +34,13 @@ export function CommitteeCard({
       <p className="mb-3 text-xs uppercase tracking-wide text-slate-500">
         {trackingType}
       </p>
-      {trackingType === "events" && (
+      {trackingType === "events" && semesterProgress && (
         <p className="text-sm text-slate-600">
-          {daysSinceLastEvent != null
-            ? `Last event: ${daysSinceLastEvent}d ago`
-            : "No events yet"}
+          {semesterProgress.completed}/{semesterProgress.target} events this semester
         </p>
+      )}
+      {trackingType === "events" && !semesterProgress && status === "no_goals" && (
+        <p className="text-sm text-slate-600">Set a semester event goal to start tracking</p>
       )}
       {(trackingType === "deliverables" || trackingType === "rooms") &&
         backlogCount != null &&

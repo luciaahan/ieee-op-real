@@ -10,7 +10,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { canEdit } from "@/lib/permissions";
-import { parseAttendeeIds, PREZ_COMMITTEE_ID } from "@/lib/exec-attendance";
+import { parseAttendeeIds, EXEC_COMMITTEE_ID, PREZ_COMMITTEE_ID } from "@/lib/exec-attendance";
 import { getExecRoster } from "@/lib/exec-roster";
 import { MeetingDetailClient } from "./MeetingDetailClient";
 
@@ -45,22 +45,42 @@ export default async function MeetingDetailPage({
     .from(actionItems)
     .where(eq(actionItems.meetingNoteId, id));
 
+  const allCommittees = await db.select().from(committees);
+  const committeeMap = Object.fromEntries(allCommittees.map((c) => [c.id, c.name]));
+  const committeeSlugMap = Object.fromEntries(
+    allCommittees.map((c) => [c.id, c.slug]),
+  );
+
   const enrichedItems = await Promise.all(
     items.map(async (item) => {
-      if (!item.ownerId) return { ...item, ownerName: null };
-      const [owner] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, item.ownerId));
-      return { ...item, ownerName: owner?.name ?? null };
+      let ownerName: string | null = null;
+      if (item.ownerId) {
+        const [owner] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, item.ownerId));
+        ownerName = owner?.name ?? null;
+      }
+      const itemCommitteeSlug = committeeSlugMap[item.committeeId];
+      return {
+        ...item,
+        ownerName,
+        committeeName: committeeMap[item.committeeId] ?? "Unknown",
+        canClose: itemCommitteeSlug
+          ? canEdit(session.user, itemCommitteeSlug)
+          : false,
+      };
     }),
   );
 
   const attendeeIds = parseAttendeeIds(note.attendeeIds);
-  const execRoster =
-    committee?.id === PREZ_COMMITTEE_ID ? await getExecRoster() : [];
+  const execRoster = await getExecRoster();
   const attendees = execRoster.filter((m) => attendeeIds.includes(m.id));
   const userCanEdit = committee ? canEdit(session.user, committee.slug) : false;
+  const editableCommittees = allCommittees
+    .filter((c) => canEdit(session.user, c.slug))
+    .map((c) => ({ id: c.id, name: c.name, slug: c.slug }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <InternalLayout>
@@ -77,7 +97,11 @@ export default async function MeetingDetailPage({
         attendees={attendees}
         execRoster={execRoster}
         attendeeIds={attendeeIds}
-        isPrezMeeting={committee?.id === PREZ_COMMITTEE_ID}
+        committees={editableCommittees}
+        isExecMeeting={
+          committee?.id === EXEC_COMMITTEE_ID ||
+          committee?.id === PREZ_COMMITTEE_ID
+        }
         canEdit={userCanEdit}
       />
     </InternalLayout>

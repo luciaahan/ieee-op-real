@@ -1,12 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { systemSettings } from "@/lib/db/schema";
+import type { SemesterSettings } from "@/lib/semester-types";
 
-export type SemesterSettings = {
-  semesterStart: string;
-  semesterEnd: string;
-  semesterLabel: string;
-};
+export type { SemesterSettings } from "@/lib/semester-types";
 
 const DEFAULTS: SemesterSettings = {
   semesterStart: "2026-01-10",

@@ -10,9 +10,9 @@ import {
   deliverables,
   meetingNotes,
   actionItems,
-  signatureEventTemplates,
 } from "@/lib/db/schema";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canViewCommittee } from "@/lib/permissions";
+import { filterActionItemsForUser } from "@/lib/action-items";
 
 export async function GET(
   _req: Request,
@@ -31,6 +31,10 @@ export async function GET(
 
   if (!committee) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canViewCommittee(session.user, slug)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const roster = await db
@@ -57,20 +61,18 @@ export async function GET(
     .where(eq(meetingNotes.committeeId, committee.id))
     .orderBy(meetingNotes.meetingDate);
 
-  const items = await db
-    .select()
-    .from(actionItems)
-    .where(
-      and(
-        eq(actionItems.committeeId, committee.id),
-        eq(actionItems.status, "open"),
+  const items = filterActionItemsForUser(
+    session.user,
+    await db
+      .select()
+      .from(actionItems)
+      .where(
+        and(
+          eq(actionItems.committeeId, committee.id),
+          eq(actionItems.status, "open"),
+        ),
       ),
-    );
-
-  const signatures = await db
-    .select()
-    .from(signatureEventTemplates)
-    .where(eq(signatureEventTemplates.committeeId, committee.id));
+  );
 
   let deliverableList: (typeof deliverables.$inferSelect)[] = [];
   if (committee.slug === "pr") {
@@ -83,7 +85,6 @@ export async function GET(
     events: committeeEvents,
     meetingNotes: notes,
     actionItems: items,
-    signatureTemplates: signatures,
     deliverables: deliverableList,
     canEdit: canEdit(session.user, slug),
   });

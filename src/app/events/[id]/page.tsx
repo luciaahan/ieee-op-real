@@ -5,6 +5,7 @@ import { EventDetailClient } from "./EventDetailClient";
 import { getEventById } from "@/lib/events";
 import { canEdit } from "@/lib/permissions";
 import { getExpensesForEvent } from "@/lib/expenses";
+import { getExecRoster } from "@/lib/exec-roster";
 
 export default async function EventPage({
   params,
@@ -22,6 +23,7 @@ export default async function EventPage({
   if (!data?.committee) notFound();
 
   const expenses = await getExpensesForEvent(id);
+  const execRoster = await getExecRoster();
 
   return (
     <InternalLayout>
@@ -30,7 +32,15 @@ export default async function EventPage({
         committeeSlug={data.committee.slug}
         committeeName={data.committee.name}
         checklist={data.checklist}
-        poster={data.poster ? { id: data.poster.id, status: data.poster.status } : null}
+        poster={
+          data.poster
+            ? {
+                id: data.poster.id,
+                status: data.poster.status,
+                assetUrl: data.poster.assetUrl,
+              }
+            : null
+        }
         roomBooking={
           data.roomBooking
             ? { id: data.roomBooking.id, status: data.roomBooking.status }
@@ -40,6 +50,8 @@ export default async function EventPage({
         posterJustRequested={posterRequested === "1"}
         roomBookingJustRequested={roomBookingRequested === "1"}
         expenses={expenses}
+        execRoster={execRoster}
+        currentUserId={session.user.id}
       />
     </InternalLayout>
   );

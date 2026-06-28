@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, isNull, like, or } from "drizzle-orm";
+import { and, ilike, isNull, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { events, meetingNotes, committees } from "@/lib/db/schema";
@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     .where(
       and(
         isNull(events.deletedAt),
-        or(like(events.title, pattern), like(events.description, pattern)),
+        or(ilike(events.title, pattern), ilike(events.description, pattern)),
       ),
     )
     .limit(25);
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
       committeeId: meetingNotes.committeeId,
     })
     .from(meetingNotes)
-    .where(like(meetingNotes.summary, pattern))
+    .where(ilike(meetingNotes.summary, pattern))
     .limit(25);
 
   const committeeList = await db.select().from(committees);

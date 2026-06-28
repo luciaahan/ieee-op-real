@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     ...result,
     digest: {
       overdueActionItems: digest.overdueActionItems.length,
-      upcomingSignatureEvents: digest.upcomingSignatureEvents.length,
+      upcomingEvents: digest.upcomingEvents.length,
       overdueChecklistEvents: digest.overdueChecklistEvents.length,
     },
   });

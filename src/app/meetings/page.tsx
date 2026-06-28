@@ -5,7 +5,7 @@ import { MeetingsClient } from "./MeetingsClient";
 import { db } from "@/lib/db";
 import { meetingNotes, committees } from "@/lib/db/schema";
 import { getExecRoster } from "@/lib/exec-roster";
-import { PREZ_COMMITTEE_ID } from "@/lib/exec-attendance";
+import { EXEC_COMMITTEE_ID } from "@/lib/exec-attendance";
 
 export default async function MeetingsPage() {
   const session = await auth();
@@ -24,7 +24,9 @@ export default async function MeetingsPage() {
         committees={allCommittees}
         execRoster={execRoster}
         canCreate={canCreate}
-        defaultCommitteeId={PREZ_COMMITTEE_ID}
+        canEditAll={session.user.canEditAll}
+        committeeEditScopes={session.user.committeeEditScopes}
+        defaultCommitteeId={EXEC_COMMITTEE_ID}
       />
     </InternalLayout>
   );

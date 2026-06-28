@@ -116,3 +116,37 @@ export async function PATCH(
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const [note] = await db
+    .select()
+    .from(meetingNotes)
+    .where(eq(meetingNotes.id, id));
+
+  if (!note) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const [committee] = await db
+    .select()
+    .from(committees)
+    .where(eq(committees.id, note.committeeId));
+
+  if (!committee || !canEdit(session.user, committee.slug)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await db.delete(actionItems).where(eq(actionItems.meetingNoteId, id));
+  await db.delete(meetingNotes).where(eq(meetingNotes.id, id));
+
+  return NextResponse.json({ ok: true });
+}

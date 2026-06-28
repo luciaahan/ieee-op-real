@@ -23,3 +23,15 @@ export function formatMonthRange(period: MonthPeriod): string {
   const end = format(new Date(`${period.monthEnd}T12:00:00`), "MMM d, yyyy");
   return `${start} — ${end}`;
 }
+
+export function getEventsInMonth<T extends { startAt: string }>(
+  events: T[],
+  period: MonthPeriod,
+): T[] {
+  return events
+    .filter((e) => isDateInMonth(e.startAt.slice(0, 10), period))
+    .sort(
+      (a, b) =>
+        new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+    );
+}

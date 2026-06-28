@@ -49,6 +49,7 @@ const defaultForm = {
   endTime: endTimeAfterStart("18:00"),
   location: "",
   description: "",
+  signupFormUrl: "",
   posterNotes: "",
   needsFoodSponsored: false,
   needsFoodInternal: false,
@@ -96,6 +97,7 @@ export function AddEventClient({
         endAt,
         location: form.location || undefined,
         description: form.description,
+        signupFormUrl: form.signupFormUrl.trim(),
         posterNotes: form.posterNotes || undefined,
         needsFoodSponsored: form.needsFoodSponsored,
         needsFoodInternal: form.needsFoodInternal,
@@ -230,6 +232,20 @@ export function AddEventClient({
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
+              }
+            />
+          </label>
+
+          <label className="block text-sm">
+            RSVP link <span className="text-red-600">*</span>
+            <input
+              required
+              type="url"
+              className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+              placeholder="https://forms.gle/..."
+              value={form.signupFormUrl}
+              onChange={(e) =>
+                setForm({ ...form, signupFormUrl: e.target.value })
               }
             />
           </label>

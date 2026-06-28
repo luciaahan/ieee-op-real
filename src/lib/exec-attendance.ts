@@ -39,6 +39,8 @@ export type MeetingNoteAttendance = {
 };
 
 export const PREZ_COMMITTEE_ID = "committee-prez";
+export const EXEC_COMMITTEE_ID = "committee-exec";
+export const EXEC_COMMITTEE_SLUG = "exec";
 export const DEFAULT_ATTENDANCE_WEEKS = 12;
 
 /** Parse YYYY-MM-DD as local calendar date (avoids UTC day-shift). */

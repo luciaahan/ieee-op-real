@@ -217,6 +217,51 @@ export const systemSettings = pgTable("system_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).defaultNow(),
 });
 
+export const mentorMatchingCycles = pgTable("mentor_matching_cycles", {
+  id: text("id").primaryKey(),
+  committeeId: text("committee_id")
+    .notNull()
+    .references(() => committees.id),
+  label: text("label").notNull(),
+  sheetUrl: text("sheet_url"),
+  status: text("status").notNull().default("in_progress"),
+  syncedAt: text("synced_at"),
+  finalizedAt: text("finalized_at"),
+  finalizedBy: text("finalized_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow(),
+});
+
+export const mentorApplications = pgTable("mentor_applications", {
+  id: text("id").primaryKey(),
+  cycleId: text("cycle_id")
+    .notNull()
+    .references(() => mentorMatchingCycles.id, { onDelete: "cascade" }),
+  andrewId: text("andrew_id").notNull(),
+  grade: text("grade").notNull(),
+  role: text("role").notNull(),
+  areas: text("areas").notNull(),
+  bucket: text("bucket").notNull(),
+  gradeOrder: integer("grade_order").notNull(),
+});
+
+export const mentorPairs = pgTable("mentor_pairs", {
+  id: text("id").primaryKey(),
+  cycleId: text("cycle_id")
+    .notNull()
+    .references(() => mentorMatchingCycles.id, { onDelete: "cascade" }),
+  mentorApplicationId: text("mentor_application_id")
+    .notNull()
+    .references(() => mentorApplications.id, { onDelete: "cascade" }),
+  menteeApplicationId: text("mentee_application_id")
+    .notNull()
+    .references(() => mentorApplications.id, { onDelete: "cascade" }),
+  matchedArea: text("matched_area").notNull(),
+  status: text("status").notNull().default("suggested"),
+  isAutoSuggested: boolean("is_auto_suggested").default(true),
+  confirmedAt: text("confirmed_at"),
+  confirmedBy: text("confirmed_by").references(() => users.id),
+});
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   permissions: one(userPermissions),
   memberships: many(committeeMemberships),
@@ -239,6 +284,11 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 export type User = typeof users.$inferSelect;
 export type Committee = typeof committees.$inferSelect;
 export type Event = typeof events.$inferSelect;
+export type Goal = typeof goals.$inferSelect;
+export type Deliverable = typeof deliverables.$inferSelect;
 export type EventChecklistItem = typeof eventChecklistItems.$inferSelect;
 export type EventExpense = typeof eventExpenses.$inferSelect;
 export type UserPermission = typeof userPermissions.$inferSelect;
+export type MentorMatchingCycle = typeof mentorMatchingCycles.$inferSelect;
+export type MentorApplication = typeof mentorApplications.$inferSelect;
+export type MentorPair = typeof mentorPairs.$inferSelect;

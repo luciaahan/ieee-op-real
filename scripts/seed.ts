@@ -7,12 +7,10 @@ import {
   userPermissions,
   committees,
   committeeMemberships,
-  signatureEventTemplates,
   eventPlanningTemplates,
 } from "@/lib/db/schema";
 import {
   COMMITTEES,
-  SIGNATURE_TEMPLATES,
   EVENT_PLANNING_TEMPLATE,
   DEMO_USERS,
 } from "@/lib/seed-data";
@@ -28,20 +26,6 @@ export async function runSeed() {
 
   for (const committee of COMMITTEES) {
     await db.insert(committees).values(committee).onConflictDoNothing();
-  }
-
-  for (const [slug, templates] of Object.entries(SIGNATURE_TEMPLATES)) {
-    const committee = COMMITTEES.find((c) => c.slug === slug);
-    if (!committee) continue;
-    for (const [i, t] of templates.entries()) {
-      await db.insert(signatureEventTemplates).values({
-        id: randomUUID(),
-        committeeId: committee.id,
-        name: t.name,
-        typicalTiming: t.typicalTiming,
-        sortOrder: i,
-      });
-    }
   }
 
   for (const template of EVENT_PLANNING_TEMPLATE) {

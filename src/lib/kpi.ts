@@ -1,23 +1,5 @@
-import { differenceInDays, format, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import type { Event } from "@/lib/db/schema";
-
-export type CadenceStatus = "on_track" | "at_risk" | "behind";
-
-export function eventCadenceStatus(
-  lastEventDate: Date | null,
-  nextEventDate: Date | null,
-): CadenceStatus {
-  const now = new Date();
-  if (nextEventDate && nextEventDate.getTime() - now.getTime() <= 30 * 86400000) {
-    return "on_track";
-  }
-  if (lastEventDate) {
-    const daysSince = differenceInDays(now, lastEventDate);
-    if (daysSince <= 45) return "on_track";
-    if (daysSince <= 60) return "at_risk";
-  }
-  return "behind";
-}
 
 export function roomBookingDueDate(startAt: string): string {
   return format(subDays(new Date(startAt), 14), "yyyy-MM-dd");

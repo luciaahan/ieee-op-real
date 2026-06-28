@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 export type ReminderDigest = {
   overdueActionItems: { description: string; committee: string; dueDate: string | null }[];
-  upcomingSignatureEvents: { title: string; committee: string; startAt: string }[];
+  upcomingEvents: { title: string; committee: string; startAt: string }[];
   overdueChecklistEvents: { title: string; committee: string; startAt: string }[];
 };
 
@@ -21,9 +21,9 @@ function buildDigestHtml(digest: ReminderDigest): string {
     sections.push("</ul>");
   }
 
-  if (digest.upcomingSignatureEvents.length > 0) {
-    sections.push("<h2>Upcoming signature events (next 14 days)</h2><ul>");
-    for (const ev of digest.upcomingSignatureEvents) {
+  if (digest.upcomingEvents.length > 0) {
+    sections.push("<h2>Upcoming events (next 14 days)</h2><ul>");
+    for (const ev of digest.upcomingEvents) {
       sections.push(
         `<li><strong>${ev.committee}</strong>: ${ev.title} — ${ev.startAt.slice(0, 10)}</li>`,
       );
@@ -43,7 +43,7 @@ function buildDigestHtml(digest: ReminderDigest): string {
 
   if (
     digest.overdueActionItems.length === 0 &&
-    digest.upcomingSignatureEvents.length === 0 &&
+    digest.upcomingEvents.length === 0 &&
     digest.overdueChecklistEvents.length === 0
   ) {
     sections.push("<p>All clear — nothing needs attention this week.</p>");

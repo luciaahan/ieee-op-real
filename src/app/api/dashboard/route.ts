@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -8,19 +8,29 @@ import {
   deliverables,
   actionItems,
   eventChecklistItems,
+  goals,
 } from "@/lib/db/schema";
-import {
-  eventCadenceStatus,
-  getLastCompletedDate,
-  getUpcomingEvents,
-} from "@/lib/kpi";
 import { isOverdue } from "@/lib/checklist";
+import { getUpcomingEvents } from "@/lib/kpi";
+import { getSemesterSettings } from "@/lib/settings";
+import {
+  committeeNeedsAttention,
+  countCompletedEventsInSemester,
+  eventCommitteeStatus,
+  posterCommitteeStatus,
+  roomCommitteeStatus,
+  type CommitteeStatus,
+} from "@/lib/committee-status";
+import { findSemesterEventGoal, parseEventTarget } from "@/lib/goals";
+import { filterActionItemsForUser } from "@/lib/action-items";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const semester = await getSemesterSettings();
 
   const allCommittees = await db
     .select()
@@ -32,10 +42,13 @@ export async function GET() {
     .from(events)
     .where(isNull(events.deletedAt));
 
-  const openActions = await db
-    .select()
-    .from(actionItems)
-    .where(eq(actionItems.status, "open"));
+  const openActions = filterActionItemsForUser(
+    session.user,
+    await db
+      .select()
+      .from(actionItems)
+      .where(eq(actionItems.status, "open")),
+  );
 
   const posters = await db
     .select()
@@ -48,24 +61,41 @@ export async function GET() {
     .where(eq(deliverables.type, "room_booking"));
 
   const checklistItems = await db.select().from(eventChecklistItems);
+  const allGoals = await db.select().from(goals);
+
+  const eventsById = Object.fromEntries(allEvents.map((e) => [e.id, e]));
+  const goalsByCommittee = new Map<string, typeof allGoals>();
+  for (const goal of allGoals) {
+    const list = goalsByCommittee.get(goal.committeeId) ?? [];
+    list.push(goal);
+    goalsByCommittee.set(goal.committeeId, list);
+  }
 
   const committeeCards = allCommittees.map((committee) => {
     const committeeEvents = allEvents.filter(
       (e) => e.committeeId === committee.id,
     );
-    const lastCompleted = getLastCompletedDate(committeeEvents);
+    const committeeGoals = goalsByCommittee.get(committee.id) ?? [];
     const upcoming = getUpcomingEvents(committeeEvents);
     const nextEvent = upcoming[0] ?? null;
 
-    let status: string = "on_track";
+    let status: CommitteeStatus = "on_track";
+    let semesterProgress: { completed: number; target: number } | undefined;
+
     if (committee.trackingType === "events") {
-      status = eventCadenceStatus(lastCompleted, nextEvent ? new Date(nextEvent.startAt) : null);
+      status = eventCommitteeStatus(committeeEvents, committeeGoals, semester);
+      const semesterGoal = findSemesterEventGoal(committeeGoals);
+      const target = parseEventTarget(semesterGoal?.targetMetric ?? null);
+      if (target != null) {
+        semesterProgress = {
+          completed: countCompletedEventsInSemester(committeeEvents, semester),
+          target,
+        };
+      }
     } else if (committee.trackingType === "deliverables") {
-      const pending = posters.filter((p) => p.status !== "done").length;
-      status = pending > 0 ? "at_risk" : "on_track";
+      status = posterCommitteeStatus(posters, eventsById);
     } else if (committee.trackingType === "rooms") {
-      const pending = roomBookings.filter((r) => r.status !== "done").length;
-      status = pending > 0 ? "at_risk" : "on_track";
+      status = roomCommitteeStatus(roomBookings, eventsById);
     }
 
     const openCount = openActions.filter(
@@ -75,11 +105,7 @@ export async function GET() {
     return {
       ...committee,
       status,
-      daysSinceLastEvent: lastCompleted
-        ? Math.floor(
-            (Date.now() - lastCompleted.getTime()) / 86400000,
-          )
-        : null,
+      semesterProgress,
       nextEvent: nextEvent
         ? { id: nextEvent.id, title: nextEvent.title, startAt: nextEvent.startAt }
         : null,
@@ -106,7 +132,9 @@ export async function GET() {
     committeeCards,
     widgets: {
       overdueActionItems: openActions.length,
-      committeesAtRisk: committeeCards.filter((c) => c.status === "at_risk" || c.status === "behind").length,
+      committeesNeedAttention: committeeCards.filter((c) =>
+        committeeNeedsAttention(c.status),
+      ).length,
       posterBacklog: posterBacklog.length,
       eventsWithOverdueChecklist,
     },

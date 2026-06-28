@@ -1,9 +1,12 @@
 import {
   getSemesterSettings,
   setSemesterSettings,
-  type SemesterSettings,
 } from "@/lib/settings";
+import type { SemesterSettings } from "@/lib/semester-types";
 import { addMonths, format, parseISO } from "date-fns";
+
+export type { SemesterSettings } from "@/lib/semester-types";
+export { isDateInSemester } from "@/lib/semester-types";
 
 function inferNextSemester(current: SemesterSettings): SemesterSettings {
   const end = parseISO(current.semesterEnd);
@@ -34,9 +37,3 @@ export async function ensureCurrentSemester(): Promise<SemesterSettings> {
   return settings;
 }
 
-export function isDateInSemester(
-  dateStr: string,
-  semester: SemesterSettings,
-): boolean {
-  return dateStr >= semester.semesterStart && dateStr <= semester.semesterEnd;
-}

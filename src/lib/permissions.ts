@@ -36,6 +36,15 @@ export function toSessionUser(
   };
 }
 
+export function canViewAllCommittees(user: SessionUser): boolean {
+  return user.canEditAll || user.canManageUsers;
+}
+
+export function canViewCommittee(user: SessionUser, committeeSlug: string): boolean {
+  if (canViewAllCommittees(user)) return true;
+  return user.committeeEditScopes.includes(committeeSlug);
+}
+
 export function canEdit(user: SessionUser, committeeSlug: string): boolean {
   if (user.canEditAll) return true;
   return user.committeeEditScopes.includes(committeeSlug);
@@ -43,6 +52,14 @@ export function canEdit(user: SessionUser, committeeSlug: string): boolean {
 
 export function canManageUsers(user: SessionUser): boolean {
   return user.canManageUsers;
+}
+
+export function canManageMentorMatching(user: SessionUser): boolean {
+  return (
+    user.canEditAll ||
+    canEdit(user, "exec") ||
+    canEdit(user, "pre-professional")
+  );
 }
 
 export function isAllowedEmailDomain(email: string): boolean {

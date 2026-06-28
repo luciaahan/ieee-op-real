@@ -431,7 +431,7 @@ export function AdminClient({
       {tab === "settings" && (
         <form onSubmit={saveSettings} className="max-w-md space-y-4 rounded border bg-white p-4">
           <p className="text-sm text-slate-600">
-            Org-wide semester dates for reporting. Signature event tracking uses the current calendar month automatically.
+            Org-wide semester dates for reporting.
           </p>
           <label className="block text-sm">
             Label
@@ -543,7 +543,7 @@ export function AdminClient({
       {tab === "email" && (
         <div className="max-w-lg rounded border bg-white p-4">
           <p className="text-sm text-slate-600">
-            Sends a digest of overdue action items, upcoming signature events (14 days), and events with overdue planning checklist items to all active exec roster emails.
+            Sends a digest of overdue action items, upcoming events (14 days), and events with overdue planning checklist items to all active exec roster emails.
           </p>
           <p className="mt-2 text-sm text-slate-500">
             Configure <code className="text-xs">RESEND_API_KEY</code> and{" "}

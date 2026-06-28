@@ -42,19 +42,31 @@ export async function POST(req: Request) {
     committeeId: body.committeeId,
     authorId: session.user.id,
     meetingDate: body.meetingDate,
-    summary: body.summary,
+    summary: body.summary?.trim() || null,
     attendeeIds: JSON.stringify(body.attendeeIds ?? []),
   });
 
   if (body.actionItems?.length) {
     for (const item of body.actionItems) {
+      const itemCommitteeId = item.committeeId ?? body.committeeId;
+      const [itemCommittee] = await db
+        .select()
+        .from(committees)
+        .where(eq(committees.id, itemCommitteeId));
+
+      if (!itemCommittee || !canEdit(session.user, itemCommittee.slug)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (!item.description?.trim()) continue;
+
       await db.insert(actionItems).values({
         id: randomUUID(),
         meetingNoteId: noteId,
-        committeeId: body.committeeId,
-        ownerId: item.ownerId,
-        description: item.description,
-        dueDate: item.dueDate,
+        committeeId: itemCommitteeId,
+        ownerId: item.ownerId || null,
+        description: item.description.trim(),
+        dueDate: item.dueDate || null,
         status: "open",
       });
     }

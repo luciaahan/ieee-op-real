@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { committees } from "@/lib/db/schema";
+import { canViewAllCommittees } from "@/lib/permissions";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
@@ -16,6 +17,13 @@ export async function Nav() {
     .select({ slug: committees.slug, name: committees.name })
     .from(committees)
     .orderBy(committees.sortOrder);
+
+  const visibleCommittees =
+    session?.user && !canViewAllCommittees(session.user)
+      ? allCommittees.filter((c) =>
+          session.user.committeeEditScopes.includes(c.slug),
+        )
+      : allCommittees;
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -34,7 +42,7 @@ export async function Nav() {
               Committees
             </summary>
             <div className="absolute right-0 z-10 mt-2 min-w-[180px] rounded border bg-white py-2 shadow-lg">
-              {allCommittees.map((c) => (
+              {visibleCommittees.map((c) => (
                 <Link
                   key={c.slug}
                   href={`/committees/${c.slug}`}

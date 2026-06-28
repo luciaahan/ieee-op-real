@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   committees,
@@ -11,9 +11,9 @@ import {
   events,
 } from "@/lib/db/schema";
 import { COMMITTEES, DEMO_USERS, EVENT_PLANNING_TEMPLATE } from "@/lib/seed-data";
+import { parseCommitteeScopes } from "@/lib/permissions";
 import { itemApplies, computeDueDate } from "@/lib/checklist";
 import type { ChecklistCondition } from "@/lib/seed-data";
-import { and, isNull } from "drizzle-orm";
 
 const LOG_EXPENSES_TITLE = "Log Expenses";
 
@@ -85,6 +85,48 @@ export async function syncDemoUsers() {
           roleLabel: demo.canManageUsers ? "President" : "Member",
         })
         .onConflictDoNothing();
+    }
+  }
+}
+
+const EXEC_COMMITTEE_ID = "committee-exec";
+const EXEC_SLUG = "exec";
+
+/** Ensure all active exec members can access the Exec committee hub. */
+export async function syncExecMemberships() {
+  const execCommittee = COMMITTEES.find((c) => c.slug === EXEC_SLUG);
+  if (!execCommittee) return;
+
+  const activeExec = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.isExecMember, true), eq(users.status, "active")));
+
+  for (const user of activeExec) {
+    await db
+      .insert(committeeMemberships)
+      .values({
+        userId: user.id,
+        committeeId: EXEC_COMMITTEE_ID,
+        roleLabel: "Exec board",
+      })
+      .onConflictDoNothing();
+
+    const [perm] = await db
+      .select()
+      .from(userPermissions)
+      .where(eq(userPermissions.userId, user.id));
+
+    if (perm) {
+      const scopes = parseCommitteeScopes(perm.committeeEditScopes);
+      if (!scopes.includes(EXEC_SLUG)) {
+        await db
+          .update(userPermissions)
+          .set({
+            committeeEditScopes: JSON.stringify([...scopes, EXEC_SLUG]),
+          })
+          .where(eq(userPermissions.userId, user.id));
+      }
     }
   }
 }

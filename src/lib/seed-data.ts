@@ -1,12 +1,20 @@
 export const COMMITTEES = [
   {
+    id: "committee-exec",
+    slug: "exec",
+    name: "Exec",
+    description: "Exec board — weekly meeting notes and org-wide programs.",
+    trackingType: "operational",
+    sortOrder: 0,
+  },
+  {
     id: "committee-prez",
     slug: "prez",
     name: "Prez",
     description:
       "Org leadership — President and VP coordinate all committees, run exec meetings, and track finances.",
     trackingType: "operational",
-    sortOrder: 0,
+    sortOrder: 1,
   },
   {
     id: "committee-internal-relations",
@@ -15,7 +23,7 @@ export const COMMITTEES = [
     description:
       "Campus logistics — books rooms and coordinates reservations for org events.",
     trackingType: "rooms",
-    sortOrder: 1,
+    sortOrder: 2,
   },
   {
     id: "committee-social",
@@ -23,7 +31,7 @@ export const COMMITTEES = [
     name: "Social",
     description: "Community building and member bonding.",
     trackingType: "events",
-    sortOrder: 2,
+    sortOrder: 3,
   },
   {
     id: "committee-research",
@@ -31,7 +39,7 @@ export const COMMITTEES = [
     name: "Research",
     description: "Exposure to research paths and faculty work.",
     trackingType: "events",
-    sortOrder: 3,
+    sortOrder: 4,
   },
   {
     id: "committee-pre-professional",
@@ -39,7 +47,7 @@ export const COMMITTEES = [
     name: "Pre-professional",
     description: "Career readiness via mentor-mentee program.",
     trackingType: "events",
-    sortOrder: 4,
+    sortOrder: 5,
   },
   {
     id: "committee-corporate",
@@ -47,7 +55,7 @@ export const COMMITTEES = [
     name: "Corporate",
     description: "Industry relationships and recruiting.",
     trackingType: "events",
-    sortOrder: 5,
+    sortOrder: 6,
   },
   {
     id: "committee-pr",
@@ -55,7 +63,7 @@ export const COMMITTEES = [
     name: "Public Relations",
     description: "Instagram account and posters per org event.",
     trackingType: "deliverables",
-    sortOrder: 6,
+    sortOrder: 7,
   },
   {
     id: "committee-doghouse",
@@ -63,7 +71,7 @@ export const COMMITTEES = [
     name: "Doghouse",
     description: "CMU Spring Carnival doghouse booth build.",
     trackingType: "events",
-    sortOrder: 7,
+    sortOrder: 8,
   },
   {
     id: "committee-outreach",
@@ -71,40 +79,9 @@ export const COMMITTEES = [
     name: "Outreach",
     description: "Community and pipeline engagement.",
     trackingType: "events",
-    sortOrder: 8,
+    sortOrder: 9,
   },
 ] as const;
-
-export const SIGNATURE_TEMPLATES: Record<
-  string,
-  { name: string; typicalTiming: string }[]
-> = {
-  social: [
-    { name: "General body meeting #1", typicalTiming: "Early semester" },
-    { name: "General body meeting #2", typicalTiming: "Mid semester" },
-    { name: "Ice skating", typicalTiming: "Near Valentine's Day" },
-  ],
-  research: [
-    { name: "Research talk #1", typicalTiming: "Fall/Spring" },
-    { name: "Research talk #2", typicalTiming: "Fall/Spring" },
-  ],
-  "pre-professional": [
-    { name: "Mentor matching complete", typicalTiming: "Week 3–4" },
-    { name: "Course chat", typicalTiming: "TBD" },
-    { name: "Dinner event", typicalTiming: "TBD" },
-    { name: "Destress event", typicalTiming: "Before finals" },
-  ],
-  corporate: [
-    { name: "Info session", typicalTiming: "Ongoing" },
-    { name: "Coffee chat", typicalTiming: "Ongoing" },
-    { name: "Resume review", typicalTiming: "Ongoing" },
-  ],
-  doghouse: [
-    { name: "Carnival kickoff", typicalTiming: "Early spring" },
-    { name: "Midway exhibition", typicalTiming: "Carnival week" },
-  ],
-  outreach: [{ name: "K-12 outreach workshop", typicalTiming: "TBD" }],
-};
 
 export type ChecklistCondition =
   | "always"
@@ -149,6 +126,7 @@ export const DEMO_USERS = [
     canEditAll: true,
     canManageUsers: true,
     committees: [
+      "exec",
       "prez",
       "internal-relations",
       "social",
@@ -166,7 +144,7 @@ export const DEMO_USERS = [
     name: "Demo Internal Relations Chair",
     canEditAll: false,
     canManageUsers: false,
-    committees: ["internal-relations"],
+    committees: ["exec", "internal-relations"],
   },
   {
     id: "user-social",
@@ -174,7 +152,7 @@ export const DEMO_USERS = [
     name: "Demo Social Chair",
     canEditAll: false,
     canManageUsers: false,
-    committees: ["social"],
+    committees: ["exec", "social"],
   },
   {
     id: "user-pr",
@@ -182,6 +160,6 @@ export const DEMO_USERS = [
     name: "Demo PR Chair",
     canEditAll: false,
     canManageUsers: false,
-    committees: ["pr"],
+    committees: ["exec", "pr"],
   },
 ];

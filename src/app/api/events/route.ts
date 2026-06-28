@@ -60,6 +60,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!body.signupFormUrl?.trim()) {
+    return NextResponse.json(
+      { error: "RSVP link is required." },
+      { status: 400 },
+    );
+  }
+
   const startAt = new Date(body.startAt).toISOString();
   const endAt = body.endAt ? new Date(body.endAt).toISOString() : undefined;
 
@@ -71,8 +78,8 @@ export async function POST(req: Request) {
     endAt,
     location: body.location,
     description: body.description.trim(),
+    signupFormUrl: body.signupFormUrl.trim(),
     posterNotes: body.posterNotes,
-    isSignature: body.isSignature,
     recurrence: body.recurrence,
     status: body.status,
     needsFood: body.needsFood,

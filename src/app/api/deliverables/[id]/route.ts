@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { deliverables, committees } from "@/lib/db/schema";
+import { deliverables, committees, events } from "@/lib/db/schema";
 import { canEdit } from "@/lib/permissions";
 import { syncDeliverableToChecklist } from "@/lib/events";
 
@@ -46,14 +46,53 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const bookedRoom =
+    typeof body.bookedRoom === "string" ? body.bookedRoom.trim() : "";
+
+  if (
+    body.status === "done" &&
+    item.type === "room_booking" &&
+    item.status !== "done" &&
+    !bookedRoom
+  ) {
+    return NextResponse.json(
+      { error: "Room name is required when marking as booked" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.status === "done" &&
+    item.type === "poster" &&
+    item.status !== "done" &&
+    !item.assetUrl
+  ) {
+    return NextResponse.json(
+      { error: "Upload a poster file when marking as done" },
+      { status: 400 },
+    );
+  }
+
   await db
     .update(deliverables)
     .set({
-      status: body.status,
-      assetUrl: body.assetUrl,
-      designerId: body.designerId,
+      status: body.status ?? item.status,
+      assetUrl: body.assetUrl !== undefined ? body.assetUrl : item.assetUrl,
+      designerId: body.designerId ?? item.designerId,
     })
     .where(eq(deliverables.id, id));
+
+  if (
+    body.status === "done" &&
+    item.type === "room_booking" &&
+    item.linkedEventId &&
+    bookedRoom
+  ) {
+    await db
+      .update(events)
+      .set({ location: bookedRoom })
+      .where(eq(events.id, item.linkedEventId));
+  }
 
   if (body.status && item.type === "poster") {
     await syncDeliverableToChecklist(id, body.status, session.user.id);

@@ -27,8 +27,8 @@ export async function createEvent(input: {
   endAt?: string;
   location?: string;
   description?: string;
+  signupFormUrl?: string;
   posterNotes?: string;
-  isSignature?: boolean;
   recurrence?: string;
   status?: string;
   needsFood?: boolean;
@@ -59,7 +59,7 @@ export async function createEvent(input: {
     endAt: input.endAt,
     location: input.location,
     description: input.description,
-    isSignature: input.isSignature ?? false,
+    signupFormUrl: input.signupFormUrl?.trim() ?? null,
     recurrence,
     status: input.status ?? "planned",
     needsFood,
@@ -75,9 +75,7 @@ export async function createEvent(input: {
   let roomBookingRequested = false;
   if (input.committeeSlug !== "pr") {
     deliverableId = randomUUID();
-    const posterSummary = [input.title, input.posterNotes ?? input.description]
-      .filter(Boolean)
-      .join(" — ");
+    const posterSummary = input.posterNotes?.trim() || null;
     await db.insert(deliverables).values({
       id: deliverableId,
       committeeId: PR_COMMITTEE_ID,
@@ -85,7 +83,7 @@ export async function createEvent(input: {
       type: "poster",
       status: "not_started",
       dueDate: posterDueDate(input.startAt),
-      captionSummary: posterSummary || null,
+      captionSummary: posterSummary,
     });
     posterRequested = true;
   }

@@ -5,7 +5,7 @@ import { AddEventClient } from "./AddEventClient";
 import { db } from "@/lib/db";
 import { committees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canViewCommittee } from "@/lib/permissions";
 
 export default async function NewEventPage({
   params,
@@ -22,6 +22,7 @@ export default async function NewEventPage({
     .where(eq(committees.slug, slug));
 
   if (!committee) notFound();
+  if (!canViewCommittee(session.user, slug)) redirect("/dashboard");
 
   if (committee.trackingType !== "events") {
     redirect(`/committees/${slug}`);
